@@ -40,7 +40,8 @@ def rank_zero_only(fn: Callable) -> Callable:
 
 @rank_zero_only
 def rank_zero_print(message: str, *args, **kwargs) -> None:  # pylint: disable=unused-argument
-    print(message)
+    logger = logging.getLogger("trainer")
+    logger.info(message)
 
 
 @rank_zero_only

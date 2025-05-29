@@ -41,7 +41,7 @@ class TrainerArgs(Coqpit):
             "help": "Number of gradient accumulation steps. It is used to accumulate gradients over multiple batches."
         },
     )
-    overfit_batch: bool = field(default=False, metadata={"help": "Overfit a single batch for debugging."})
+    overfit_batch: bool = field(default=False, metadata={"help": "Overfit a single batch for debugging. When enabled, the trainer will repeatedly train on the first batch in the dataset instead of iterating through all batches. This is useful for debugging model architecture, loss functions, and training loops."})
     skip_train_epoch: bool = field(
         default=False,
         metadata={"help": "Skip training and only run evaluation and test."},
@@ -165,6 +165,22 @@ class TrainerConfig(Coqpit):
         default="tcp://localhost:54321",
         metadata={"help": "Distributed url to use. Defaults to 'tcp://localhost:54321'"},
     )
+    # Fields for TPU training
+    use_tpu: bool = field(
+        default=False, metadata={"help": "Use TPU for training. Requires torch_xla to be installed. Defaults to False"}
+    )
+    tpu_cores: int = field(
+        default=8, metadata={"help": "Number of TPU cores to use. Defaults to 8"}
+    )
+    tpu_metrics_debug: bool = field(
+        default=False, metadata={"help": "Enable TPU metrics debugging. Defaults to False"}
+    )
+    tpu_profiler: bool = field(
+        default=False, metadata={"help": "Enable TPU profiler. Defaults to False"}
+    )
+    tpu_profiler_steps: int = field(
+        default=100, metadata={"help": "Number of steps to profile on TPU. Defaults to 100"}
+    )
     # Fields for training specs
     mixed_precision: bool = field(default=False, metadata={"help": "Use mixed precision training. Defaults to False"})
     precision: str = field(
@@ -226,4 +242,194 @@ class TrainerConfig(Coqpit):
     training_seed: int = field(
         default=54321,
         metadata={"help": "Global seed for torch, random and numpy random number generator. Defaults to 54321"},
+    )
+    # Deepspeed integration fields
+    use_deepspeed: bool = field(
+        default=False,
+        metadata={"help": "Enable Deepspeed integration for large-scale training optimization. Defaults to False"}
+    )
+    deepspeed_config_file: str = field(
+        default="",
+        metadata={
+            "help": "Path to custom Deepspeed configuration JSON file. If empty, auto-generates config. Defaults to ''"
+        }
+    )
+    deepspeed_zero_stage: int = field(
+        default=2,
+        metadata={
+            "help": "Deepspeed Zero optimization stage (0, 1, 2, or 3). Higher stages save more memory. Defaults to 2"
+        }
+    )
+    deepspeed_cpu_offload: bool = field(
+        default=False,
+        metadata={
+            "help": "Enable Deepspeed CPU offloading for optimizer/parameters to save GPU memory. Defaults to False"
+        }
+    )
+
+
+@dataclass
+class BaseTrainingConfig(TrainerConfig):
+    """Base configuration class for training that extends TrainerConfig with commonly used fields.
+    
+    This class provides a foundation for model-specific training configurations by adding
+    common parameters that are frequently used across different model types, such as
+    data loading, model identification, and training utilities.
+    
+    Inherit from this class to create model-specific configurations while maintaining
+    consistent training parameter patterns across different models.
+    
+    Args:
+        model (str):
+            Name/identifier of the model being trained. This can be used for logging,
+            model registry, or conditional logic. Defaults to None.
+            
+        num_loader_workers (int):
+            Number of worker processes for training data loading. Set to 0 to disable
+            multiprocessing. Higher values can improve training speed but consume more
+            memory. Defaults to 0.
+            
+        num_eval_loader_workers (int):
+            Number of worker processes for evaluation data loading. Can be different
+            from training workers to optimize evaluation performance. Defaults to 0.
+            
+        data_path (str):
+            Path to the root directory containing training data. This can be used
+            as a base path for dataset loading. Defaults to "".
+            
+        use_data_cache (bool):
+            Enable/disable caching of preprocessed data to speed up subsequent
+            training runs. Defaults to False.
+            
+        cache_path (str):
+            Directory path where cached data should be stored. If empty, defaults
+            to a cache directory within the output path. Defaults to "".
+            
+        max_seq_len (int):
+            Maximum sequence length for input data. Used for truncation or padding
+            operations during data preprocessing. Defaults to None.
+            
+        min_seq_len (int):
+            Minimum sequence length for input data. Sequences shorter than this
+            may be filtered out or padded. Defaults to None.
+            
+        use_data_augmentation (bool):
+            Enable/disable data augmentation techniques during training.
+            Defaults to False.
+            
+        eval_split_size (float):
+            Fraction of data to use for evaluation when automatic train/eval
+            splitting is performed. Should be between 0.0 and 1.0. Defaults to 0.1.
+            
+        test_split_size (float):
+            Fraction of data to use for testing when automatic train/test
+            splitting is performed. Should be between 0.0 and 1.0. Defaults to 0.1.
+            
+        use_weighted_sampling (bool):
+            Enable/disable weighted sampling for imbalanced datasets.
+            Defaults to False.
+            
+        compute_linear_spec (bool):
+            Enable/disable computation of linear spectrograms for audio models.
+            Defaults to False.
+            
+        compute_mel_spec (bool):
+            Enable/disable computation of mel-scale spectrograms for audio models.
+            Defaults to True.
+    
+    Example:
+        >>> from trainer.config import BaseTrainingConfig
+        >>> class MyModelConfig(BaseTrainingConfig):
+        ...     model: str = "my_custom_model"
+        ...     num_loader_workers: int = 4
+        ...     lr: float = 0.001
+        ...     # Add model-specific parameters here
+        >>> config = MyModelConfig()
+        >>> trainer = Trainer(args, config, ...)
+    """
+    
+    # Model identification
+    model: str = field(
+        default=None,
+        metadata={"help": "Name/identifier of the model being trained. Used for logging and model registry."}
+    )
+    
+    # Data loading configuration
+    num_loader_workers: int = field(
+        default=0,
+        metadata={
+            "help": "Number of worker processes for training data loading. Set to 0 to disable multiprocessing. Defaults to 0."
+        }
+    )
+    num_eval_loader_workers: int = field(
+        default=0,
+        metadata={
+            "help": "Number of worker processes for evaluation data loading. Defaults to 0."
+        }
+    )
+    data_path: str = field(
+        default="",
+        metadata={"help": "Path to the root directory containing training data. Defaults to ''."}
+    )
+    
+    # Data caching
+    use_data_cache: bool = field(
+        default=False,
+        metadata={"help": "Enable/disable caching of preprocessed data to speed up training. Defaults to False."}
+    )
+    cache_path: str = field(
+        default="",
+        metadata={
+            "help": "Directory path where cached data should be stored. If empty, uses output_path/cache. Defaults to ''."
+        }
+    )
+    
+    # Sequence configuration
+    max_seq_len: int | None = field(
+        default=None,
+        metadata={
+            "help": "Maximum sequence length for input data. Used for truncation/padding. Defaults to None."
+        }
+    )
+    min_seq_len: int | None = field(
+        default=None,
+        metadata={
+            "help": "Minimum sequence length for input data. Shorter sequences may be filtered. Defaults to None."
+        }
+    )
+    
+    # Data augmentation
+    use_data_augmentation: bool = field(
+        default=False,
+        metadata={"help": "Enable/disable data augmentation techniques during training. Defaults to False."}
+    )
+    
+    # Data splitting
+    eval_split_size: float = field(
+        default=0.1,
+        metadata={
+            "help": "Fraction of data for evaluation when automatic splitting is used. Range: 0.0-1.0. Defaults to 0.1."
+        }
+    )
+    test_split_size: float = field(
+        default=0.1,
+        metadata={
+            "help": "Fraction of data for testing when automatic splitting is used. Range: 0.0-1.0. Defaults to 0.1."
+        }
+    )
+    
+    # Sampling strategy
+    use_weighted_sampling: bool = field(
+        default=False,
+        metadata={"help": "Enable/disable weighted sampling for imbalanced datasets. Defaults to False."}
+    )
+    
+    # Audio/spectral processing (commonly used across audio models)
+    compute_linear_spec: bool = field(
+        default=False,
+        metadata={"help": "Enable/disable computation of linear spectrograms for audio models. Defaults to False."}
+    )
+    compute_mel_spec: bool = field(
+        default=True,
+        metadata={"help": "Enable/disable computation of mel-scale spectrograms for audio models. Defaults to True."}
     )

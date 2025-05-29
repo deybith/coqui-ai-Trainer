@@ -144,3 +144,7 @@ cython_debug/
 MNIST/
 tests_local/
 output/
+
+
+#xtts
+data

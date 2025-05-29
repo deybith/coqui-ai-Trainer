@@ -1,3 +1,4 @@
+import logging
 import os
 import tempfile
 import traceback
@@ -9,6 +10,8 @@ import torch
 from trainer.logging.base_dash_logger import BaseDashboardLogger
 from trainer.trainer_utils import is_mlflow_available
 from trainer.utils.distributed import rank_zero_only
+
+logger = logging.getLogger("trainer")
 
 if is_mlflow_available():
     from mlflow.tracking import MlflowClient
@@ -98,7 +101,7 @@ class MLFlowLogger(BaseDashboardLogger):
                         f"{scope_name}/{key}/{step}.wav",
                     )
             except RuntimeError:
-                traceback.print_exc()
+                logger.exception("Failed to log audio to MLFlow:")
 
     def train_step_stats(self, step, stats):
         self.client.set_tag(self.run_id, "Mode", "training")

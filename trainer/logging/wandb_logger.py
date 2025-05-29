@@ -1,5 +1,6 @@
 # pylint: disable=W0613
 
+import logging
 import traceback
 from collections import defaultdict
 from pathlib import Path
@@ -8,6 +9,8 @@ from typing import TYPE_CHECKING, Any, Union
 from trainer.logging.base_dash_logger import BaseDashboardLogger
 from trainer.trainer_utils import is_wandb_available
 from trainer.utils.distributed import rank_zero_only
+
+logger = logging.getLogger("trainer")
 
 if is_wandb_available():
     import wandb  # pylint: disable=import-error
@@ -59,7 +62,7 @@ class WandbLogger(BaseDashboardLogger):
             try:
                 self.log_dict[step][f"{scope_name}/{key}"] = wandb.Audio(value, sample_rate=sample_rate)
             except RuntimeError:
-                traceback.print_exc()
+                logger.exception("Failed to add audio to wandb:")
 
     def add_text(self, title, text, step):
         pass

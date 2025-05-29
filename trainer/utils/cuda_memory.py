@@ -4,10 +4,13 @@ credit: https://github.com/BlackHC/toma/blob/master/toma/torch_cuda_memory.py
 """
 
 import gc
+import logging
 
 import torch
 
 from trainer.utils.cpu_memory import is_out_of_cpu_memory
+
+logger = logging.getLogger("trainer")
 
 
 def gc_cuda() -> None:
@@ -79,13 +82,11 @@ def cuda_meminfo() -> None:
     if not torch.cuda.is_available():
         return
 
-    print("Total:", torch.cuda.memory_allocated() / 2**30, " GB Cached: ", torch.cuda.memory_reserved() / 2**30, "GB")
-    print(
-        "Max Total:",
+    logger.info("Total: %.2f GB Cached: %.2f GB", torch.cuda.memory_allocated() / 2**30, torch.cuda.memory_reserved() / 2**30)
+    logger.info(
+        "Max Total: %.2f GB Max Cached: %.2f GB",
         torch.cuda.max_memory_allocated() / 2**30,
-        " GB Max Cached: ",
         torch.cuda.max_memory_reserved() / 2**30,
-        "GB",
     )
 
 

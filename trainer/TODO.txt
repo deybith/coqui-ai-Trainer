@@ -3,12 +3,12 @@
 + MLFlow logger
 + Profiler integration.
 + Moving `training_assets` to the model implementation.
-- Wrap model for not calling .module in DDP.
-- Overfitting to a batch.
-- TPU training
-- BaseTrainingConfig
-- Add Checkpoint manager
-- Use `logging` instead of `print`
-- Auto scaling the batch size and find the largest batch size for training.
-- Stochastic weight averaging
-- Deepspeed integration
++ Wrap model for not calling .module in DDP.
++ Use `logging` instead of `print`
++ Overfitting to a batch.
++ TPU training
++ BaseTrainingConfig
++ Add Checkpoint manager
++ Auto scaling the batch size and find the largest batch size for training.
++ Stochastic weight averaging
++ Deepspeed integration

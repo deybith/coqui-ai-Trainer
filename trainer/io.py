@@ -132,8 +132,26 @@ def save_model(
     epoch: int,
     output_path: str | os.PathLike[Any],
     save_func: Callable[[Any, str | os.PathLike[Any]], None] | None = None,
-    **kwargs: Any,
-) -> None:
+    **kwargs: Any,    ) -> None:
+    # Check if we're running on TPU and use TPU-specific model saving
+    try:
+        # Try to detect if the model is on TPU
+        if hasattr(model, 'device') and str(model.device).startswith('xla'):
+            from trainer.utils.tpu import save_model_on_tpu
+            logger.info(" > Saving model on TPU device")
+            save_model_on_tpu(model, output_path)
+            return
+        elif any(str(param.device).startswith('xla') for param in model.parameters()):
+            from trainer.utils.tpu import save_model_on_tpu
+            logger.info(" > Saving model on TPU device")
+            save_model_on_tpu(model, output_path)
+            return
+    except ImportError:
+        # TPU utilities not available, fall back to standard saving
+        pass
+    except Exception as e:
+        logger.warning(f" > TPU model saving failed, falling back to standard saving: {e}")
+    
     model_state = model.state_dict()
     optimizer_state: StateDict | list[StateDict] | None
     if isinstance(optimizer, list):

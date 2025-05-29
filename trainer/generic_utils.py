@@ -23,13 +23,25 @@ def is_pytorch_at_least_2_4() -> bool:
     return Version(torch.__version__) >= Version("2.4")
 
 
-def to_cuda(x: torch.Tensor) -> torch.Tensor:
+def to_cuda(x: torch.Tensor, device: str | torch.device | None = None) -> torch.Tensor:
+    """Move tensor to CUDA device.
+    
+    Args:
+        x: Input tensor to move to CUDA
+        device: Target device. If None, uses default CUDA device.
+    
+    Returns:
+        Tensor moved to the specified CUDA device
+    """
     if x is None:
         return None
     if torch.is_tensor(x):
         x = x.contiguous()
         if torch.cuda.is_available():
-            x = x.cuda(non_blocking=True)
+            if device is not None:
+                x = x.to(device, non_blocking=True)
+            else:
+                x = x.cuda(non_blocking=True)
     return x
 
 

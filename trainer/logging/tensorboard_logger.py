@@ -1,5 +1,6 @@
 import os
 import traceback
+import logging
 from typing import Any
 
 import torch
@@ -8,6 +9,8 @@ from torch.utils.tensorboard import SummaryWriter
 from trainer._types import Audio, Figure
 from trainer.config import TrainerConfig
 from trainer.logging.base_dash_logger import BaseDashboardLogger
+
+logger = logging.getLogger("trainer")
 
 
 class TensorboardLogger(BaseDashboardLogger):
@@ -26,7 +29,11 @@ class TensorboardLogger(BaseDashboardLogger):
                 self.writer.add_scalar(f"layer{layer_num}-{name}/mean", param.mean(), step)
                 self.writer.add_scalar(f"layer{layer_num}-{name}/std", param.std(), step)
                 self.writer.add_histogram(f"layer{layer_num}-{name}/param", param, step)
-                self.writer.add_histogram(f"layer{layer_num}-{name}/grad", param.grad, step)
+                if param.grad is not None:  # Only log gradients if they exist
+                    self.writer.add_histogram(f"layer{layer_num}-{name}/grad", param.grad, step)
+                else:
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(f"No gradient for parameter {name}")
             layer_num += 1
 
     def add_config(self, config: TrainerConfig) -> None:
@@ -69,7 +76,7 @@ class TensorboardLogger(BaseDashboardLogger):
                     sample_rate=sample_rate,
                 )
             except RuntimeError:
-                traceback.print_exc()
+                logger.exception("Failed to add audio to tensorboard:")
 
     def flush(self) -> None:
         self.writer.flush()
