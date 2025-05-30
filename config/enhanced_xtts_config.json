@@ -1,0 +1,125 @@
+{
+  "model_name": "enhanced_xtts",
+  "run_name": "enhanced_xtts_v1",
+  "run_description": "Enhanced XTTS with neural codec and streaming architecture",
+  
+  "// Model Architecture": "Core model configuration",
+  "sample_rate": 22050,
+  "mel_channels": 80,
+  "fft_size": 1024,
+  "hop_length": 256,
+  "win_length": 1024,
+  "mel_fmin": 0,
+  "mel_fmax": 8000,
+  
+  "// GPT Configuration": "Original GPT parameters",
+  "gpt_batch_size": 1,
+  "gpt_max_audio_tokens": 605,
+  "gpt_max_text_tokens": 402,
+  "gpt_max_prompt_tokens": 70,
+  "gpt_layers": 30,
+  "gpt_n_model_channels": 1024,
+  "gpt_n_heads": 16,
+  "gpt_num_audio_tokens": 8194,
+  "gpt_start_audio_token": 8192,
+  "gpt_stop_audio_token": 8193,
+  "gpt_code_stride_len": 1024,
+  "gpt_use_masking_gt_prompt_approach": true,
+  "gpt_use_perceiver_resampler": false,
+  
+  "// Neural Codec Configuration": "Enhanced audio representation",
+  "use_neural_codec": true,
+  "codec_type": "encodec",
+  "codec_hidden_dim": 512,
+  "codec_num_quantizers": 8,
+  "codec_codebook_size": 1024,
+  "codec_bitrate": 6.0,
+  "adaptive_bitrate": true,
+  
+  "// Streaming Configuration": "Real-time inference",
+  "enable_streaming": true,
+  "streaming_chunk_size": 128,
+  "streaming_overlap_size": 32,
+  "streaming_context_window": 512,
+  "streaming_buffer_size": 4096,
+  
+  "// Quality Monitoring": "Real-time quality assessment",
+  "enable_quality_monitoring": true,
+  "quality_threshold": 0.7,
+  "adaptive_quality_control": true,
+  
+  "// Performance Optimization": "Training and inference speed",
+  "use_flash_attention": true,
+  "gradient_checkpointing": false,
+  "mixed_precision": true,
+  "compile_model": false,
+  
+  "// Enhanced Training Features": "Advanced loss functions",
+  "use_consistency_loss": true,
+  "use_perceptual_loss": true,
+  "use_adversarial_training": false,
+  
+  "// Model Architecture Enhancements": "Advanced components",
+  "enhanced_attention": true,
+  "moe_num_experts": 0,
+  "moe_top_k": 2,
+  
+  "// Backward Compatibility": "Fallback options",
+  "fallback_to_mel": true,
+  
+  "// Training Configuration": "Training hyperparameters",
+  "batch_size": 8,
+  "eval_batch_size": 4,
+  "num_workers": 4,
+  "learning_rate": 1e-4,
+  "weight_decay": 1e-6,
+  "gradient_clip_val": 1.0,
+  
+  "// Scheduler Configuration": "Learning rate scheduling",
+  "scheduler_T_0": 10,
+  "scheduler_T_mult": 2,
+  
+  "// Logging and Checkpointing": "Training monitoring",
+  "log_interval": 100,
+  "eval_interval": 1000,
+  "save_interval": 5,
+  
+  "// HifiGAN Decoder Configuration": "Audio generation",
+  "input_sample_rate": 22050,
+  "output_sample_rate": 24000,
+  "output_hop_length": 256,
+  "decoder_input_dim": 1024,
+  "d_vector_dim": 512,
+  "cond_d_vector_in_each_upsampling_layer": true,
+  
+  "// Constants": "Fixed parameters",
+  "duration_const": 102400,
+  
+  "// Enhanced Targets": "Performance goals",
+  "target_mos": 4.8,
+  "target_latency_ms": 100,
+  "target_rtf": 0.5,
+  "target_speaker_similarity": 0.98,
+  
+  "// Model Paths": "File locations",
+  "model_dir": "./models/",
+  "gpt_checkpoint": null,
+  "decoder_checkpoint": null,
+  
+  "// Language Support": "Multilingual configuration",
+  "languages": ["en", "es", "fr", "de", "it", "pt", "pl", "tr", "ru", "nl", "cs", "ar", "zh-cn", "ja", "hu", "ko", "hi"],
+  "default_language": "en",
+  
+  "// Voice Cloning": "Speaker adaptation",
+  "min_reference_length": 3.0,
+  "max_reference_length": 30.0,
+  "speaker_embedding_dim": 512,
+  
+  "// Streaming Quality Control": "Adaptive quality",
+  "streaming_quality_levels": {
+    "high": {"bitrate": 12.0, "latency_penalty": 1.5},
+    "medium": {"bitrate": 6.0, "latency_penalty": 1.0},
+    "low": {"bitrate": 3.0, "latency_penalty": 0.7}
+  },
+  "default_streaming_quality": "medium"
+}
