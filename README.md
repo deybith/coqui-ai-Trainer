@@ -1,217 +1,223 @@
-<p align="center"><img src="https://user-images.githubusercontent.com/1402048/151947958-0bcadf38-3a82-4b4e-96b4-a38d3721d737.png" align="right" height="255px" /></p>
+# 🎙️ Coqui AI Trainer
 
-# 👟 Trainer
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE.txt)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-orange.svg)](https://pytorch.org/)
 
-[![PyPI - License](https://img.shields.io/pypi/l/coqui-tts-trainer)](https://github.com/idiap/coqui-ai-Trainer/blob/main/LICENSE.txt)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/coqui-tts-trainer)
-[![PyPI - Version](https://img.shields.io/pypi/v/coqui-tts-trainer)](https://pypi.org/project/coqui-tts-trainer)
-![GithubActions](https://github.com/idiap/coqui-ai-Trainer/actions/workflows/tests.yml/badge.svg)
-![GithubActions](https://github.com/idiap/coqui-ai-Trainer/actions/workflows/style_check.yml/badge.svg)
+A comprehensive, production-ready training framework for Text-to-Speech (TTS) models, with enhanced XTTS implementations and state-of-the-art features.
 
-An opinionated general purpose model trainer on PyTorch with a simple code base.
-Fork of the [original, unmaintained repository](https://github.com/coqui-ai/Trainer). New PyPI package: [coqui-tts-trainer](https://pypi.org/project/coqui-tts-trainer)
+## ✨ Key Features
 
-## Installation
+### 🚀 Enhanced XTTS Training
+- **Advanced Architecture**: Phase 2 enhancements with Mamba, Flash Attention, RoPE, and Mixture of Experts
+- **Production Ready**: Optimized training pipeline with quality monitoring
+- **Multi-language Support**: Comprehensive language configuration system
+- **Quality Improvements**: Advanced loss functions and training techniques
 
-From PyPI:
+### 🏗️ Framework Capabilities
+- **Modular Design**: Flexible architecture for various TTS models
+- **Distributed Training**: Multi-GPU and distributed training support
+- **Advanced Optimization**: DeepSpeed integration and automatic mixed precision
+- **Comprehensive Monitoring**: Real-time training metrics and quality assessment
 
-```console
-pip install coqui-tts-trainer
-```
+## 🚀 Quick Start
 
-From Github:
-
-```console
-git clone https://github.com/idiap/coqui-ai-Trainer
-cd coqui-ai-Trainer
-pip install -e .
-```
-
-## Implementing a model
-Subclass and overload the functions in the [```TrainerModel()```](trainer/model.py)
-
-
-## Training a model with auto-optimization
-See the [MNIST example](examples/train_mnist.py).
-
-
-## Training a model with advanced optimization
-With 👟 you can define the whole optimization cycle as you want as the in GAN example below. It enables more
-under-the-hood control and flexibility for more advanced training loops.
-
-You just have to use the ```scaled_backward()``` function to handle mixed precision training.
-
-```python
-...
-
-def optimize(self, batch, trainer):
-    imgs, _ = batch
-
-    # sample noise
-    z = torch.randn(imgs.shape[0], 100)
-    z = z.type_as(imgs)
-
-    # train discriminator
-    imgs_gen = self.generator(z)
-    logits = self.discriminator(imgs_gen.detach())
-    fake = torch.zeros(imgs.size(0), 1)
-    fake = fake.type_as(imgs)
-    loss_fake = trainer.criterion(logits, fake)
-
-    valid = torch.ones(imgs.size(0), 1)
-    valid = valid.type_as(imgs)
-    logits = self.discriminator(imgs)
-    loss_real = trainer.criterion(logits, valid)
-    loss_disc = (loss_real + loss_fake) / 2
-
-    # step dicriminator
-    self.scaled_backward(loss_disc, None, trainer)
-
-    if trainer.total_steps_done % trainer.grad_accum_steps == 0:
-        trainer.optimizer[0].step()
-        trainer.optimizer[0].zero_grad()
-
-    # train generator
-    imgs_gen = self.generator(z)
-
-    valid = torch.ones(imgs.size(0), 1)
-    valid = valid.type_as(imgs)
-
-    logits = self.discriminator(imgs_gen)
-    loss_gen = trainer.criterion(logits, valid)
-
-    # step generator
-    self.scaled_backward(loss_gen, None, trainer)
-    if trainer.total_steps_done % trainer.grad_accum_steps == 0:
-        trainer.optimizer[1].step()
-        trainer.optimizer[1].zero_grad()
-    return {"model_outputs": logits}, {"loss_gen": loss_gen, "loss_disc": loss_disc}
-
-...
-```
-
-See the [GAN training example](examples/train_simple_gan.py) with Gradient Accumulation
-
-
-## Training with Batch Size Finder
-see the test script [here](tests/test_train_batch_size_finder.py) for training with batch size finder.
-
-
-The batch size finder starts at a default BS(defaults to 2048 but can also be user defined) and searches for the largest batch size that can fit on your hardware. you should expect for it to run multiple trainings until it finds it. to use it instead of calling ```trainer.fit()``` youll call ```trainer.fit_with_largest_batch_size(starting_batch_size=2048)``` with ```starting_batch_size``` being the batch the size you want to start the search with. very useful if you are wanting to use as much gpu mem as possible.
-
-## Training with DDP
-
-```console
-$ python -m trainer.distribute --script path/to/your/train.py --gpus "0,1"
-```
-
-We don't use ```.spawn()``` to initiate multi-gpu training since it causes certain limitations.
-
-- Everything must the pickable.
-- ```.spawn()``` trains the model in subprocesses and the model in the main process is not updated.
-- DataLoader with N processes gets really slow when the N is large.
-
-## Training with [Accelerate](https://huggingface.co/docs/accelerate/index)
-
-Setting `use_accelerate` in `TrainingArgs` to `True` will enable training with Accelerate.
-
-You can also use it for multi-gpu or distributed training.
-
-```console
-CUDA_VISIBLE_DEVICES="0,1,2" accelerate launch --multi_gpu --num_processes 3 train_recipe_autoregressive_prompt.py
-```
-
-See the [Accelerate docs](https://huggingface.co/docs/accelerate/basic_tutorials/launch).
-
-## Adding a callback
-👟 Supports callbacks to customize your runs. You can either set callbacks in your model implementations or give them
-explicitly to the Trainer.
-
-Please check `trainer.utils.callbacks` to see available callbacks.
-
-Here is how you provide an explicit call back to a 👟Trainer object for weight reinitialization.
-
-```python
-def my_callback(trainer):
-    print(" > My callback was called.")
-
-trainer = Trainer(..., callbacks={"on_init_end": my_callback})
-trainer.fit()
-```
-
-## Profiling example
-
-- Create the torch profiler as you like and pass it to the trainer.
-    ```python
-    import torch
-    profiler = torch.profiler.profile(
-        activities=[
-            torch.profiler.ProfilerActivity.CPU,
-            torch.profiler.ProfilerActivity.CUDA,
-        ],
-        schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
-        on_trace_ready=torch.profiler.tensorboard_trace_handler("./profiler/"),
-        record_shapes=True,
-        profile_memory=True,
-        with_stack=True,
-    )
-    prof = trainer.profile_fit(profiler, epochs=1, small_run=64)
-    then run Tensorboard
-    ```
-- Run the tensorboard.
-    ```console
-    tensorboard --logdir="./profiler/"
-    ```
-
-## Supported Experiment Loggers
-- [Tensorboard](https://www.tensorflow.org/tensorboard) - actively maintained
-- [ClearML](https://clear.ml/) - actively maintained
-- [MLFlow](https://mlflow.org/)
-- [Aim](https://aimstack.io/)
-- [WandDB](https://wandb.ai/)
-
-To add a new logger, you must subclass [BaseDashboardLogger](trainer/logging/base_dash_logger.py) and overload its functions.
-
-## 🎯 XTTS Enhancements (New!)
-
-This repository now includes enhanced XTTS configurations that fix common issues:
-
-### ✨ What's Fixed
-- **Audio Cutoff**: No more incomplete sentences or abrupt endings
-- **Language Mixing**: Consistent language output without random switches  
-- **Robotic Audio**: More natural, human-like speech synthesis
-- **Quality Issues**: Better audio fidelity and reduced artifacts
-
-### 🚀 Quick Start with Enhanced XTTS
-
+### Installation
 ```bash
-# 1. Setup enhanced environment
-python quick_enhance.py setup
+# Clone the repository
+git clone https://github.com/your-repo/coqui-ai-Trainer.git
+cd coqui-ai-Trainer
 
-# 2. Check your data format
-python quick_enhance.py check --csv your_training_data.csv
+# Install dependencies
+pip install -r requirements.txt
+```
 
-# 3. Train with enhanced configuration
-python quick_enhance.py train \
-    --output_path ./enhanced_model \
-    --train_csv ./your_data.csv \
+### Basic Training
+```bash
+# Train an enhanced XTTS model
+python examples/xtts/train_xtts_enhanced.py \
+    --config configs/xtts/enhanced_xtts_config.json \
+    --data_path ./data/your_dataset \
+    --output_path ./output/my_model
+
+# Quick validation
+python scripts/validation/quick_validate.py --model_path ./output/my_model
+```
+
+## 📁 Project Structure
+
+This project follows a well-organized structure for optimal development workflow:
+
+```
+├── 📂 src/trainer/           # Core training framework
+├── 📂 examples/              # Usage examples and demos
+├── 📂 scripts/               # Automation and utility scripts
+├── 📂 configs/               # Model configurations
+├── 📂 tests/                 # Test suites
+├── 📂 docs/                  # Documentation
+├── 📂 data/                  # Training datasets
+└── 📂 output/                # Model outputs
+```
+
+📖 **See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for detailed organization**
+
+## 🎯 Training Examples
+
+### Enhanced XTTS Training
+```bash
+# Basic enhanced training
+python examples/xtts/train_xtts_enhanced.py \
+    --output_path ./models/my_voice \
+    --train_csv ./data/train.csv \
+    --eval_csv ./data/eval.csv \
     --language en
 
-# 4. Test your enhanced model
-python quick_enhance.py test \
-    --model_path ./enhanced_model/run/training \
-    --speaker_wav ./speaker_reference.wav
-
-# 5. Validate quality improvements
-python quick_enhance.py validate \
-    --model_path ./enhanced_model/run/training \
-    --speaker_wav ./speaker_reference.wav
+# Advanced training with Phase 2 enhancements
+python scripts/training/launch_full_enhanced_training.py \
+    --config configs/xtts/phase2_xtts_config.json \
+    --use_phase2_enhancements \
+    --use_mamba \
+    --use_flash_attention
 ```
 
-### 📚 Enhanced Documentation
-- **[XTTS_FIXES_README.md](XTTS_FIXES_README.md)** - Technical details of the fixes
-- **[XTTS_ENHANCEMENT_GUIDE.md](XTTS_ENHANCEMENT_GUIDE.md)** - Complete implementation guide
-- **Enhanced Scripts**:
-  - `examples/train_xtts_enhanced.py` - Enhanced training script
-  - `examples/test_xtts_enhanced.py` - Testing with quality analysis
-  - `scripts/validate_xtts_model.py` - Comprehensive validation suite
+### Multi-language Training
+```bash
+# Configure for your language
+python scripts/utilities/setup_custom_training.py \
+    --language es \
+    --config_output ./configs/my_spanish_config.json
+
+# Train with custom configuration
+python examples/xtts/train_xtts_enhanced.py \
+    --config ./configs/my_spanish_config.json
+```
+
+## 🔧 Key Scripts and Tools
+
+### Training Scripts
+- `examples/xtts/train_xtts_enhanced.py` - Enhanced XTTS training
+- `scripts/training/launch_full_enhanced_training.py` - Automated training launcher
+- `scripts/training/run_full_enhanced_training.sh` - Shell-based training
+
+### Validation and Testing
+- `scripts/validation/validate_enhanced_xtts.py` - Comprehensive model validation
+- `scripts/validation/quick_validate.py` - Quick quality check
+- `scripts/validation/phase2_final_validation.py` - Phase 2 feature validation
+
+### Utilities
+- `scripts/utilities/prepare_training_data.py` - Data preparation
+- `scripts/utilities/setup_custom_training.py` - Custom configuration setup
+- `scripts/utilities/migrate_to_phase2.py` - Model migration tool
+
+## 📊 Performance Features
+
+### Advanced Training Techniques
+- **Gradient Accumulation**: Efficient large batch training
+- **Mixed Precision**: Faster training with reduced memory usage
+- **Learning Rate Scheduling**: Optimized convergence
+- **Quality Monitoring**: Real-time audio quality assessment
+
+### Model Enhancements
+- **Streaming Architecture**: Real-time TTS capability
+- **Neural Codec**: High-quality audio compression
+- **Prosody Control**: Fine-grained speech characteristics
+- **Multi-speaker Support**: Voice adaptation and cloning
+
+## 📚 Documentation
+
+### User Guides
+- **[Getting Started](docs/guides/FULL_ENHANCED_TRAINING_GUIDE.md)** - Complete training walkthrough
+- **[Language Configuration](docs/guides/LANGUAGE_CONFIGURATION_GUIDE.md)** - Multi-language setup
+- **[Advanced Usage](docs/guides/ADVANCED_USAGE_GUIDE.md)** - Advanced features and optimization
+
+### Development
+- **[Roadmap](docs/roadmaps/XTTS_PHASE2_ROADMAP.md)** - Future development plans
+- **[Architecture](docs/implementation/)** - Technical implementation details
+- **[Contributing](docs/CONTRIBUTING.md)** - Development guidelines
+
+### Status Reports
+- **[Phase 1 Completion](docs/status-reports/PHASE1_COMPLETION_REPORT.md)** - Phase 1 achievements
+- **[Phase 2 Completion](docs/status-reports/PHASE2_COMPLETION_REPORT.md)** - Latest enhancements
+- **[Project Status](docs/status-reports/PROJECT_STATUS.md)** - Current development status
+
+## 🛠️ Configuration Management
+
+### Pre-configured Setups
+```bash
+# Enhanced XTTS (recommended)
+configs/xtts/enhanced_xtts_config.json
+
+# Full advanced features
+configs/xtts/full_enhanced_config.json
+
+# Phase 2 with state-of-the-art features
+configs/xtts/phase2_xtts_config.json
+
+# Multi-language support
+configs/xtts/multilingual_training_config.json
+```
+
+### Custom Configuration
+```bash
+# Generate custom config for your use case
+python scripts/utilities/setup_custom_training.py \
+    --language your_language \
+    --features enhanced,streaming,quality_monitoring \
+    --output ./configs/custom_config.json
+```
+
+## 🧪 Testing and Validation
+
+### Automated Testing
+```bash
+# Run full test suite
+python -m pytest tests/
+
+# Quick integration tests
+python tests/unit/test_enhanced_integration.py
+
+# Validate Phase 2 features
+python tests/unit/test_phase2_integration.py
+```
+
+### Quality Assessment
+```bash
+# Comprehensive model validation
+python scripts/validation/validate_enhanced_xtts.py \
+    --model_path ./output/my_model \
+    --test_data ./data/test_set
+
+# Voice quality monitoring
+python examples/demos/voice_quality_monitor.py \
+    --model_path ./output/my_model
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](docs/CONTRIBUTING.md) for details on:
+
+- Code style and standards
+- Testing requirements
+- Pull request process
+- Development setup
+
+## 📄 License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE.txt](LICENSE.txt) file for details.
+
+## 🙏 Acknowledgments
+
+- **Coqui AI Team** - Original framework foundation
+- **Community Contributors** - Enhancements and improvements
+- **Research Community** - Advanced techniques and methodologies
+
+## 📞 Support
+
+- **Documentation**: Comprehensive guides in `docs/`
+- **Examples**: Working examples in `examples/`
+- **Issues**: GitHub issues for bug reports and feature requests
+- **Community**: Join our community discussions
+
+---
+
+**Ready to create amazing voices? Start with our [Quick Start Guide](docs/guides/FULL_ENHANCED_TRAINING_GUIDE.md)!** 🎤✨

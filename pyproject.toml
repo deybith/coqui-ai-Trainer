@@ -110,7 +110,10 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["trainer"]
+packages = ["src"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
 
 [tool.ruff]
 line-length = 120
@@ -155,7 +158,7 @@ show_missing = true
 skip_empty = true
 
 [tool.coverage.run]
-source = ["trainer", "tests"]
+source = ["src/trainer", "tests"]
 command_line = "-m pytest"
 
 [tool.mypy]
