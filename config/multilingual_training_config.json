@@ -1,0 +1,69 @@
+{
+  "// Enhanced XTTS Multilingual Training Configuration": "",
+  "run_name": "enhanced_xtts_multilingual",
+  "model": "enhanced_xtts",
+  "run_description": "Enhanced XTTS training with multilingual support",
+  
+  "// Language Configuration": "Primary language settings",
+  "languages": ["en", "es", "fr", "de", "it", "pt", "pl", "tr", "ru", "nl", "cs", "ar", "zh-cn", "ja", "hu", "ko", "hi"],
+  "default_language": "en",
+  "target_language": "en",
+  
+  "// Language-Specific Training Parameters": "",
+  "use_language_weighted_sampler": true,
+  "language_weighted_sampler_alpha": 1.0,
+  "use_phoneme_conditioning": true,
+  "language_conditioning_strength": 1.5,
+  
+  "// Text Processing": "Language-aware text preprocessing",
+  "text_cleaners": ["multilingual_cleaners"],
+  "phoneme_language": "en",
+  "enable_phoneme_pruning": false,
+  "phoneme_cache_path": "./phoneme_cache",
+  
+  "// Model Configuration": "Enhanced GPT settings",
+  "gpt_max_text_tokens": 402,
+  "gpt_max_audio_tokens": 800,
+  "max_text_length": 350,
+  "max_wav_length": 660000,
+  
+  "// Language-Enhanced Training Parameters": "",
+  "temperature": 0.75,
+  "repetition_penalty": 2.5,
+  "length_penalty": 1.0,
+  "top_k": 40,
+  "top_p": 0.8,
+  
+  "// Cross-Lingual Features": "Advanced multilingual capabilities",
+  "enable_code_switching": true,
+  "cross_lingual_conditioning": true,
+  "multilingual_speaker_adaptation": true,
+  
+  "// Training Parameters": "",
+  "epochs": 1000,
+  "batch_size": 4,
+  "eval_batch_size": 2,
+  "lr": 5e-5,
+  "grad_clip": 1.0,
+  
+  "// Data Configuration": "",
+  "train_csv": "./data/multilingual_train.csv",
+  "eval_csv": "./data/multilingual_eval.csv",
+  "output_path": "./enhanced_multilingual_output",
+  
+  "// Phase 2 Enhancements": "Enable advanced features",
+  "use_phase1": true,
+  "use_phase2": true,
+  "use_mamba": true,
+  "use_moe": true,
+  "use_flash_attention": true,
+  "use_rope": true,
+  "use_neural_codec": true,
+  "use_streaming": true,
+  "use_quality_monitoring": true,
+  
+  "// Language-Specific Quality Control": "",
+  "enable_language_quality_monitoring": true,
+  "per_language_validation": true,
+  "language_specific_metrics": true
+}

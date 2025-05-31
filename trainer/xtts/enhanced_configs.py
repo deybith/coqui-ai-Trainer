@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Optional, Dict, List, Any
 
 from coqpit import Coqpit, check_argument
@@ -214,5 +214,114 @@ class EnhancedXTTSConfig(TrainerConfig):
         if self.lr_scheduler_params is None:
             self.lr_scheduler_params = {
                 "T_max": 2000,
+                "eta_min": 1e-7
+            }
+
+
+@dataclass
+class EnhancedGPTTrainerConfig(TrainerConfig):
+    """Enhanced GPT Trainer Configuration for Phase 2 Enhanced XTTS training."""
+    
+    # Model architecture
+    model_name: str = "enhanced_gpt_xtts"
+    d_model: int = 1024
+    n_layers: int = 30
+    n_heads: int = 16
+    
+    # Training parameters
+    batch_size: int = 4
+    eval_batch_size: int = 2
+    learning_rate: float = 5e-5
+    weight_decay: float = 1e-6
+    gradient_clip_val: float = 1.0
+    num_epochs: int = 100
+    warmup_steps: int = 2000
+    
+    # Phase 2 enhancements
+    use_phase1: bool = True
+    use_phase2: bool = True
+    use_mamba: bool = True
+    use_moe: bool = True
+    use_flash_attention: bool = True
+    use_rope: bool = True
+    use_neural_codec: bool = True
+    use_streaming: bool = True
+    use_quality_monitoring: bool = True
+    
+    # MoE configuration
+    moe_num_experts: int = 8
+    moe_top_k: int = 2
+    moe_capacity_factor: float = 1.25
+    moe_aux_loss_alpha: float = 0.01
+    
+    # Mamba configuration
+    mamba_d_state: int = 16
+    mamba_d_conv: int = 4
+    mamba_expand: int = 2
+    
+    # Performance optimization
+    mixed_precision: bool = True
+    gradient_checkpointing: bool = True
+    compile_model: bool = True
+    
+    # Logging and checkpointing
+    log_interval: int = 50
+    eval_interval: int = 500
+    save_interval: int = 2500
+    max_checkpoints: int = 5
+    
+    # Audio configuration
+    sample_rate: int = 22050
+    mel_channels: int = 80
+    fft_size: int = 1024
+    hop_length: int = 256
+    
+    # Text and audio tokens
+    max_text_tokens: int = 402
+    max_audio_tokens: int = 605
+    
+    # Language Configuration - Enhanced Multilingual Support
+    languages: list = field(default_factory=lambda: [
+        "en", "es", "fr", "de", "it", "pt", "pl", "tr", 
+        "ru", "nl", "cs", "ar", "zh-cn", "ja", "hu", "ko", "hi"
+    ])
+    default_language: str = "en"
+    target_language: str = "en"
+    
+    # Language-specific training parameters
+    use_language_weighted_sampler: bool = True
+    language_weighted_sampler_alpha: float = 1.0
+    use_language_conditioning: bool = True
+    language_conditioning_strength: float = 1.5
+    
+    # Cross-lingual features
+    enable_code_switching: bool = True
+    cross_lingual_conditioning: bool = True
+    multilingual_speaker_adaptation: bool = True
+    
+    # Language quality monitoring
+    enable_language_quality_monitoring: bool = True
+    per_language_validation: bool = True
+    language_specific_metrics: bool = True
+    
+    # Text processing for multilingual
+    text_cleaners: list = field(default_factory=lambda: ["multilingual_cleaners"])
+    phoneme_language: str = "en"
+    enable_phoneme_pruning: bool = False
+    phoneme_cache_path: str = "./phoneme_cache"
+    use_phoneme_conditioning: bool = True
+    
+    def __post_init__(self):
+        """Post initialization to set up default configurations."""
+        if not hasattr(self, 'optimizer_params') or self.optimizer_params is None:
+            self.optimizer_params = {
+                "betas": [0.9, 0.999],
+                "weight_decay": self.weight_decay,
+                "eps": 1e-8
+            }
+        
+        if not hasattr(self, 'lr_scheduler_params') or self.lr_scheduler_params is None:
+            self.lr_scheduler_params = {
+                "T_max": self.warmup_steps * 5,
                 "eta_min": 1e-7
             }

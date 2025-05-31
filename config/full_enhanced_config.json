@@ -1,0 +1,48 @@
+{
+  "data_path": "./data",
+  "model_name": "full_enhanced_xtts",
+  "use_phase1": true,
+  "use_phase2": true,
+  "use_neural_codec": true,
+  "use_streaming": true,
+  "use_quality_monitoring": true,
+  "use_mamba": true,
+  "use_flash_attention": true,
+  "use_rope": true,
+  "use_moe": true,
+  
+  "d_model": 1024,
+  "n_layers": 12,
+  "n_heads": 16,
+  "max_text_tokens": 400,
+  "max_mel_tokens": 600,
+  "max_prompt_tokens": 70,
+  
+  "moe_num_experts": 8,
+  "moe_top_k": 2,
+  "mamba_d_state": 16,
+  
+  "batch_size": 4,
+  "learning_rate": 1e-4,
+  "num_epochs": 100,
+  "validation_split": 0.1,
+  "save_every_n_epochs": 5,
+  
+  "gradient_clip": 1.0,
+  "weight_decay": 1e-5,
+  "warmup_steps": 1000,
+  
+  "optimizer": "adamw",
+  "scheduler": "cosine_with_warmup",
+  "mixed_precision": true,
+  "gradient_checkpointing": true,
+  
+  "log_every_n_steps": 100,
+  "validate_every_n_epochs": 5,
+  "tensorboard_dir": "./logs",
+  
+  "label_smoothing": 0.1,
+  "dropout": 0.1,
+  "use_deepspeed": false,
+  "deepspeed_config": null
+}

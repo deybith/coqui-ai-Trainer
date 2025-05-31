@@ -284,10 +284,18 @@ class Phase2EnhancedLayer(nn.Module):
                 attention_output = self.attention(hidden_states)
         
         else:
-            # Standard attention
+            # Standard attention - convert attention mask format
+            converted_mask = None
+            if attention_mask is not None:
+                batch_size, seq_len = attention_mask.shape
+                # Convert from [batch_size, seq_len] to [seq_len, seq_len] for PyTorch MultiheadAttention
+                # Create causal mask or use key_padding_mask instead
+                converted_mask = attention_mask.bool()
+            
+            # Use key_padding_mask instead of attn_mask for better compatibility
             attention_output, attention_weights = self.attention(
                 hidden_states, hidden_states, hidden_states,
-                attn_mask=attention_mask,
+                key_padding_mask=~converted_mask if converted_mask is not None else None,
                 need_weights=output_attentions,
             )
         

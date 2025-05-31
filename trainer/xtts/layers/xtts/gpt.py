@@ -30,7 +30,7 @@ class GPT(nn.Module):
         max_prompt_tokens=70,
         max_conditioning_inputs=1,
         code_stride_len=1024,
-        number_text_tokens=256,
+        number_text_tokens=512,  # Increased from 256 to accommodate special tokens like start_text_token=261
         num_audio_tokens=8194,
         start_audio_token=8192,
         stop_audio_token=8193,

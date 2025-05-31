@@ -262,8 +262,7 @@ class TopKRouter(nn.Module):
         # Compute auxiliary loss
         auxiliary_losses = {}
         if self.use_auxiliary_loss and self.training:
-            if attention_mask is not None:
-                attention_mask = attention_mask.view(-1)
+            # Keep attention_mask in 2D format for _compute_auxiliary_loss
             auxiliary_losses["load_balancing_loss"] = (
                 self._compute_auxiliary_loss(router_probs.view(batch_size, seq_len, -1), expert_indices, attention_mask)
                 * self.auxiliary_loss_factor

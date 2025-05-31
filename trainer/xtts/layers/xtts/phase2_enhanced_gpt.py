@@ -60,10 +60,32 @@ class LearnedPositionEmbeddings(_OriginalLearnedPositionEmbeddings):
         sl = x.shape[1]
         
         if self.relative:
-            start = random.randint(sl, self.seq_len) - sl
-            pos_emb = self.emb(torch.arange(start, start + sl, device=x.device))
+            # Ensure we don't exceed embedding table bounds
+            if sl >= self.seq_len:
+                # If sequence is longer than embedding table, use the last positions
+                start = max(0, self.seq_len - sl)
+                pos_emb = self.emb(torch.arange(start, self.seq_len, device=x.device))
+                # Pad or truncate to match sequence length
+                if pos_emb.shape[0] < sl:
+                    # Repeat the last position if needed
+                    last_pos = pos_emb[-1:].expand(sl - pos_emb.shape[0], -1)
+                    pos_emb = torch.cat([pos_emb, last_pos], dim=0)
+                else:
+                    pos_emb = pos_emb[:sl]
+            else:
+                # Normal case: sequence fits within embedding table
+                max_start = self.seq_len - sl
+                start = random.randint(0, max_start)
+                pos_emb = self.emb(torch.arange(start, start + sl, device=x.device))
         else:
-            pos_emb = self.emb(torch.arange(0, sl, device=x.device))
+            # Absolute positioning: clamp sequence length to embedding table size
+            effective_sl = min(sl, self.seq_len)
+            pos_emb = self.emb(torch.arange(0, effective_sl, device=x.device))
+            
+            # If sequence is longer than embedding table, repeat last position
+            if sl > self.seq_len:
+                last_pos = pos_emb[-1:].expand(sl - effective_sl, -1)
+                pos_emb = torch.cat([pos_emb, last_pos], dim=0)
         
         # Expand for batch dimension: [seq_len, model_dim] -> [batch, seq_len, model_dim]
         return pos_emb.unsqueeze(0).expand(batch_size, -1, -1)
@@ -84,7 +106,7 @@ class Phase2GPTConfig:
     max_prompt_tokens: int = 70
     max_conditioning_inputs: int = 1
     code_stride_len: int = 1024
-    number_text_tokens: int = 256
+    number_text_tokens: int = 512  # Increased from 256 to accommodate special tokens like start_text_token=261
     num_audio_tokens: int = 8194
     start_audio_token: int = 8192
     stop_audio_token: int = 8193
@@ -394,7 +416,7 @@ class Phase2EnhancedGPT(nn.Module):
         max_prompt_tokens=70,
         max_conditioning_inputs=1,
         code_stride_len=1024,
-        number_text_tokens=256,
+        number_text_tokens=512,  # Increased from 256 to accommodate special tokens like start_text_token=261
         num_audio_tokens=8194,
         start_audio_token=8192,
         stop_audio_token=8193,
@@ -738,7 +760,16 @@ class Phase2EnhancedGPT(nn.Module):
         
         # Build input and target tensors
         text_inputs, text_targets = self.set_inputs_and_targets(text_inputs, self.start_text_token, self.stop_text_token)
-        audio_codes, mel_targets = self.set_inputs_and_targets(audio_codes, self.start_audio_token, self.stop_audio_token)
+        
+        # Handle audio codes dimension for mel targets
+        if audio_codes.dim() == 3:
+            # For 3D audio_codes [batch, seq_len, num_quantizers], use first quantizer for targets
+            audio_codes_for_targets = audio_codes[:, :, 0]
+            audio_codes_input, mel_targets = self.set_inputs_and_targets(audio_codes_for_targets, self.start_audio_token, self.stop_audio_token)
+            # Keep the original audio_codes for embedding computation
+        else:
+            audio_codes_input, mel_targets = self.set_inputs_and_targets(audio_codes, self.start_audio_token, self.stop_audio_token)
+            audio_codes = audio_codes_input
         
         # Create attention masks
         attn_mask_cond = None
@@ -748,7 +779,7 @@ class Phase2EnhancedGPT(nn.Module):
         if not return_latent:
             attn_mask_cond = torch.ones(cond_mels.shape[0], cond_mels.shape[-1], dtype=torch.bool, device=text_inputs.device)
             attn_mask_text = torch.ones(text_inputs.shape[0], text_inputs.shape[1], dtype=torch.bool, device=text_inputs.device)
-            attn_mask_mel = torch.ones(audio_codes.shape[0], audio_codes.shape[1], dtype=torch.bool, device=audio_codes.device)
+            attn_mask_mel = torch.ones(audio_codes_input.shape[0], audio_codes_input.shape[1], dtype=torch.bool, device=audio_codes_input.device)
             
             # Apply masking based on actual lengths
             if cond_idxs is not None:
@@ -767,7 +798,15 @@ class Phase2EnhancedGPT(nn.Module):
         
         # Compute embeddings
         text_emb = self.text_embedding(text_inputs) + self.text_pos_embedding(text_inputs)
-        mel_emb = self.mel_embedding(audio_codes) + self.mel_pos_embedding(audio_codes)
+        
+        # Fix mel embedding dimension mismatch
+        # Use audio_codes_input for embeddings (this should be 2D)
+        if audio_codes_input.dim() == 3:
+            # If still 3D, use first quantizer
+            audio_codes_2d = audio_codes_input[:, :, 0]
+            mel_emb = self.mel_embedding(audio_codes_2d) + self.mel_pos_embedding(audio_codes_2d)
+        else:
+            mel_emb = self.mel_embedding(audio_codes_input) + self.mel_pos_embedding(audio_codes_input)
         
         # Get conditioning latents
         if cond_latents is None:

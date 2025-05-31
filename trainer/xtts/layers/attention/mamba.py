@@ -173,6 +173,10 @@ class SelectiveStateSpace(nn.Module):
         """
         batch, seqlen, d_inner = x.shape
         
+        # Verify input dimensions match expected d_inner
+        if d_inner != self.d_inner:
+            raise ValueError(f"Input d_inner {d_inner} doesn't match expected {self.d_inner}")
+        
         # Compute dt, B, C from input
         x_dbl = self.x_proj(x)  # (batch, seqlen, dt_rank + 2*d_state)
         dt, B, C = torch.split(x_dbl, [self.dt_rank, self.d_state, self.d_state], dim=-1)
@@ -183,6 +187,12 @@ class SelectiveStateSpace(nn.Module):
         # Get A and D
         A = -torch.exp(self.A_log.float())  # (d_inner, d_state)
         D = self.D.float()
+        
+        # Verify A and D have correct dimensions
+        if A.shape != (self.d_inner, self.d_state):
+            raise ValueError(f"A shape {A.shape} doesn't match expected ({self.d_inner}, {self.d_state})")
+        if D.shape != (self.d_inner,):
+            raise ValueError(f"D shape {D.shape} doesn't match expected ({self.d_inner},)")
         
         # Discretize continuous parameters (A, B)
         # Use Euler method for discretization
@@ -203,17 +213,23 @@ class SelectiveStateSpace(nn.Module):
         x = x.transpose(-1, -2)  # (batch, d_inner, seqlen)
         
         # Initialize state
-        h = torch.zeros(batch, d_inner, self.d_state, device=x.device, dtype=x.dtype)
+        h = torch.zeros(batch, self.d_inner, self.d_state, device=x.device, dtype=x.dtype)
         outputs = []
         
         for i in range(seqlen):
-            # Update state: h = deltaA[:, :, i] * h + deltaB[:, :, :, i] * x[:, :, i:i+1]
-            h = deltaA[:, :, i] * h + deltaB[:, :, :, i] * x[:, :, i:i+1].unsqueeze(-1)
+            # Update state: h = deltaA[:, :, i, :] * h + deltaB[:, :, :, i] * x[:, :, i:i+1]
+            deltaA_i = deltaA[:, :, i, :]  # (batch, d_inner, d_state)
+            deltaB_i = deltaB[:, :, :, i]  # (batch, d_inner, d_state)
+            x_i = x[:, :, i:i+1]  # (batch, d_inner, 1)
+            
+            # Fix: expand x_i to match deltaB_i dimensions for proper broadcasting
+            x_i_expanded = x_i.expand(-1, -1, self.d_state)  # (batch, d_inner, d_state)
+            h = deltaA_i * h + deltaB_i * x_i_expanded
             
             # Compute output: y = C @ h + D * x
-            C_i = C[:, i:i+1, :].transpose(-1, -2)  # (batch, d_state, 1)
-            y_i = torch.einsum("bds,bds->bd", h.squeeze(-1), C_i.squeeze(-1))
-            y_i = y_i + D * x[:, :, i]
+            # Fix: use correct einsum for state space output computation
+            y_i = torch.einsum("bds,bs->bd", h, C[:, i, :])  # Contract along state dimension
+            y_i = y_i + D.unsqueeze(0) * x[:, :, i]
             outputs.append(y_i.unsqueeze(-1))
         
         y = torch.cat(outputs, dim=-1)  # (batch, d_inner, seqlen)
@@ -385,10 +401,14 @@ class HybridMambaAttention(nn.Module):
         mamba_out, _ = self.mamba(x)
         
         # Attention path
+        converted_mask = None
+        if mask is not None:
+            # Convert from [batch_size, seq_len] to key_padding_mask format for PyTorch MultiheadAttention
+            converted_mask = mask.bool()
+        
         attn_out, _ = self.attention(
             x, x, x,
-            attn_mask=mask,
-            key_padding_mask=key_padding_mask,
+            key_padding_mask=~converted_mask if converted_mask is not None else None,
             need_weights=False
         )
         
